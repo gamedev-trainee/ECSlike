@@ -1,0 +1,16 @@
+{
+    "name": "com.gamedev-trainee.ecslike",
+    "version": "0.0.1",
+    "displayName": "ECSlike",
+    "description": "Simple ECS framework",
+    "unity": "2020.3",
+    "dependencies": {
+   },
+   "keywords": [
+      "ecs"
+    ],
+    "author": {
+      "name": "K.Y@gamedev-trainee",
+      "url": "https://github.com/gamedev-trainee"
+    }
+  }
