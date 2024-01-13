@@ -2,27 +2,29 @@
 {
     public abstract class EntitySystem : AbstractSystem
     {
-        public static readonly int EntityCapacity = 32;
-
-        private bool m_inited = false;
         private System.Type[] m_wantedTypes = null;
-        private EntityList m_entityList = null;
+        private TypeEntityList m_wantedEntities = null;
 
-        protected void init(World world)
+        protected override void onInit(World world)
         {
-            if (m_inited) return;
-            m_inited = true;
-            m_wantedTypes = getWantedComponentTypes();
-            m_entityList = world.allocateEntityList(m_wantedTypes);
+            m_wantedTypes = getWantedTypes();
+            m_wantedEntities = world.getTypeEntityList(m_wantedTypes);
         }
 
-        public sealed override void update(World world)
+        protected sealed override void onUpdate(World world)
         {
-            init(world);
-            m_entityList.eachEntity(onUpdateEntity);
+            m_wantedEntities.beginLock();
+            {
+                int count = m_wantedEntities.getCount();
+                for (int i = 0; i < count; i++)
+                {
+                    onUpdateEntity(m_wantedEntities.getEntityComponentsAt(i));
+                }
+            }
+            m_wantedEntities.endLock();
         }
 
-        protected abstract System.Type[] getWantedComponentTypes();
+        protected abstract System.Type[] getWantedTypes();
 
         protected abstract void onUpdateEntity(IComponent[] components);
     }

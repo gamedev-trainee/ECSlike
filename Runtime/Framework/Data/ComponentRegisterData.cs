@@ -1,6 +1,6 @@
 ﻿namespace ECSlike
 {
-    public struct ComponentRegisterData
+    public class ComponentRegisterData
     {
         public System.Type componentType;
         public System.Type configType;

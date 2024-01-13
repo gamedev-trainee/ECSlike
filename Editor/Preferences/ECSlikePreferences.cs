@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 namespace ECSlike
 {
@@ -43,7 +44,14 @@ namespace ECSlike
             return false;
         }
 
-        public string worldName = "ECSWorld";
-        public string generateOutput = "Assets/Scripts/ECS/Generated";
+        public List<ECSlikeWorldInfo> worlds = new List<ECSlikeWorldInfo>()
+        {
+            new ECSlikeWorldInfo()
+            {
+                worldName = "ECSWorld",
+                input = "Assets/Scripts/ECS/Stage",
+                output = "Assets/Scripts/ECS/Generated",
+            }
+        };
     }
 }

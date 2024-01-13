@@ -2,6 +2,7 @@
 {
     public interface ISystem
     {
-        void update(World world);
+        void init(World world);
+        void update();
     }
 }

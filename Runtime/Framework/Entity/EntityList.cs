@@ -4,91 +4,83 @@ namespace ECSlike
 {
     public class EntityList
     {
-        private bool m_executing = false;
+        private bool m_locked = false;
+
         private List<int> m_list = new List<int>();
-        private List<int> m_addList = new List<int>();
-        private List<int> m_removeList = new List<int>();
-        private Dictionary<int, IComponent[]> m_componentMap = new Dictionary<int, IComponent[]>();
+        private List<int> m_adds = new List<int>();
+        private List<int> m_removes = new List<int>();
 
-        public void addEntity(int entity, IComponent[] components)
+        public void addEntity(int value)
         {
-            if (m_list.Contains(entity)) return;
-            if (m_executing)
+            if (m_locked)
             {
-                if (m_addList.Contains(entity)) return;
-                m_componentMap.Add(entity, components);
-                m_addList.Add(entity);
+                m_adds.Add(value);
+                m_removes.Remove(value);
             }
             else
             {
-                m_componentMap.Add(entity, components);
-                onAddEntity(entity);
+                m_list.Add(value);
             }
         }
 
-        protected void onAddEntity(int entity)
+        public void removeEntity(int value)
         {
-            m_list.Add(entity);
-        }
-
-        public void removeEntity(int entity)
-        {
-            if (!m_list.Contains(entity)) return;
-            if (m_executing)
+            if (m_locked)
             {
-                m_addList.Remove(entity);
-                if (m_removeList.Contains(entity)) return;
-                m_removeList.Add(entity);
+                m_removes.Add(value);
+                m_adds.Remove(value);
             }
             else
             {
-                onRemoveEntity(entity);
+                m_list.Remove(value);
             }
         }
 
-        protected void onRemoveEntity(int entity)
+        public void beginLock()
         {
-            m_list.Remove(entity);
-            m_componentMap.Remove(entity);
+            m_locked = true;
         }
 
-        public void eachEntity(System.Action<IComponent[]> handler)
+        public void endLock()
         {
-            m_executing = true;
-            int count = m_list.Count;
-            for (int i = 0; i < count; i++)
-            {
-                handler.Invoke(m_componentMap[m_list[i]]);
-            }
-            m_executing = false;
+            m_locked = false;
             flush();
         }
 
-        protected void flush()
+        public void flush()
         {
-            if (m_removeList.Count > 0)
+            if (m_removes.Count > 0)
             {
-                int count = m_removeList.Count;
-                for (int i = count - 1; i >= 0; i--)
+                if (m_list.Count > 0)
                 {
-                    onRemoveEntity(m_removeList[i]);
+                    int count = m_removes.Count;
+                    for (int i = 0; i < count; i++)
+                    {
+                        m_list.Remove(m_removes[i]);
+                    }
                 }
-                m_removeList.Clear();
+                m_removes.Clear();
             }
-            if (m_addList.Count > 0)
+            if (m_adds.Count > 0)
             {
-                int count = m_addList.Count;
+                int count = m_adds.Count;
                 for (int i = 0; i < count; i++)
                 {
-                    onAddEntity(m_addList[i]);
+                    m_list.Add(m_adds[i]);
                 }
-                m_addList.Clear();
+                m_adds.Clear();
             }
         }
 
         public int getCount()
         {
             return m_list.Count;
+        }
+
+        public int getAt(int index)
+        {
+            if (index < 0 || index >= m_list.Count) return 0;
+            return m_list[index];
         }
     }
 }

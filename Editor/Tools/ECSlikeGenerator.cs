@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using Microsoft.CSharp;
+using System.CodeDom.Compiler;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
@@ -158,45 +160,144 @@ namespace ECSlike
         [MenuItem("ECSlike/Generate Codes", false, 1000)]
         public static void GenerateCodes()
         {
-            string generateRoot;
-            string worldName = DefaultWorldName;
             ECSlikePreferences preferences = ECSlikePreferences.Load();
-            if (string.IsNullOrEmpty(preferences.generateOutput))
+            if (preferences.worlds.Count <= 0)
             {
-                if (EditorUtility.DisplayDialog("Generate Failed", "Missing generateOutput", "Go to setup", "Cancel"))
+                if (EditorUtility.DisplayDialog("Generate Failed", "No World", "Go to setup", "Cancel"))
                 {
                     ECSlikePreferencesEditWindow.Open();
                 }
                 return;
             }
-            generateRoot = preferences.generateOutput;
-            if (!string.IsNullOrEmpty(preferences.worldName))
+            int count = preferences.worlds.Count;
+            for (int i = 0; i < count; i++)
             {
-                worldName = preferences.worldName;
+                if (string.IsNullOrEmpty(preferences.worlds[i].worldName))
+                {
+                    if (EditorUtility.DisplayDialog("Generate Failed", "Missing worldName", "Go to setup", "Cancel"))
+                    {
+                        ECSlikePreferencesEditWindow.Open();
+                    }
+                    return;
+                }
+                if (string.IsNullOrEmpty(preferences.worlds[i].input))
+                {
+                    if (EditorUtility.DisplayDialog("Generate Failed", "Missing input", "Go to setup", "Cancel"))
+                    {
+                        ECSlikePreferencesEditWindow.Open();
+                    }
+                    return;
+                }
+                if (string.IsNullOrEmpty(preferences.worlds[i].output))
+                {
+                    if (EditorUtility.DisplayDialog("Generate Failed", "Missing output", "Go to setup", "Cancel"))
+                    {
+                        ECSlikePreferencesEditWindow.Open();
+                    }
+                    return;
+                }
             }
-            TypeCache.TypeCollection types = TypeCache.GetTypesDerivedFrom<IComponent>();
-            int success = 0;
-            int total = types.Count;
-            if (total > 0)
+            EditorUtility.DisplayProgressBar("Generate Codes", "", 0f);
+            count = preferences.worlds.Count;
+            for (int i = 0; i < count; i++)
             {
-                total++;
-                List<System.Type> generatedTypes = new List<System.Type>();
-                int count = types.Count;
+                GenerateCodes(preferences.worlds[i]);
+            }
+            EditorUtility.ClearProgressBar();
+        }
+
+        public static void GenerateCodes(ECSlikeWorldInfo worldInfo)
+        {
+            GenerateCodes(worldInfo, ReadCodeTypes(worldInfo));
+        }
+
+        protected static bool IsWantedAssembly(string location)
+        {
+            location = location.Replace("\\", "/");
+            if (location.EndsWith("mscorlib.dll")) return false;
+            return true;
+        }
+
+        protected static IList<System.Type> ReadCodeTypes(ECSlikeWorldInfo worldInfo)
+        {
+            EditorUtility.DisplayProgressBar("Generate Codes", string.Format("read from {0}", worldInfo.input), 0f);
+            if (string.IsNullOrEmpty(worldInfo.input)) return null;
+            string[] files = System.IO.Directory.GetFiles(worldInfo.input, "*.cs", System.IO.SearchOption.AllDirectories);
+            if (files == null || files.Length <= 0) return null;
+            CSharpCodeProvider codeProvider = new CSharpCodeProvider();
+            CompilerParameters compilerParameters = new CompilerParameters();
+            Assembly[] assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
+            string location;
+            int count = assemblies.Length;
+            for (int i = 0; i < count; i++)
+            {
+                try
+                {
+                    location = assemblies[i].Location;
+                    if (!IsWantedAssembly(location)) continue;
+                    compilerParameters.ReferencedAssemblies.Add(location);
+                }
+                catch
+                {
+                    continue;
+                }
+            }
+            compilerParameters.GenerateExecutable = false;
+            compilerParameters.GenerateInMemory = true;
+            CompilerResults results = codeProvider.CompileAssemblyFromFile(compilerParameters, files);
+            if (results.Errors.HasErrors)
+            {
+                count = results.Errors.Count;
                 for (int i = 0; i < count; i++)
                 {
-                    if (GenerateComponent(types[i], generateRoot))
+                    Debug.LogErrorFormat("Compile code error: {0}", results.Errors[i].ErrorText);
+                }
+                return null;
+            }
+            Assembly codeAssembly = results.CompiledAssembly;
+            return codeAssembly.GetTypes();
+        }
+
+        protected static void GenerateCodes(ECSlikeWorldInfo worldInfo, IList<System.Type> codeTypes)
+        {
+            EditorUtility.DisplayProgressBar("Generate Codes", string.Format("{0} generating...", worldInfo.worldName), 0f);
+            if (codeTypes == null || codeTypes.Count <= 0)
+            {
+                if (EditorUtility.DisplayDialog("Generate Failed", "Nothing to generate", "Ok"))
+                {
+                    return;
+                }
+            }
+            string generateRoot = worldInfo.output;
+            string worldName = worldInfo.worldName;
+            int success = 0;
+            int total = 0;
+            if (codeTypes.Count > 0)
+            {
+                System.Type componentBaseType = typeof(IComponent);
+                List<System.Type> generatedTypes = new List<System.Type>();
+                int count = codeTypes.Count;
+                for (int i = 0; i < count; i++)
+                {
+                    if (!componentBaseType.IsAssignableFrom(codeTypes[i]))
                     {
-                        generatedTypes.Add(types[i]);
+                        continue;
+                    }
+                    total++;
+                    if (GenerateComponent(codeTypes[i], generateRoot))
+                    {
+                        generatedTypes.Add(codeTypes[i]);
                         success++;
                     }
                 }
+                total++;
                 if (GenerateWorld(generatedTypes, worldName, generateRoot))
                 {
                     success++;
                 }
             }
             AssetDatabase.Refresh();
-            Debug.LogFormat("Generate Codes Complete: {0} / {1}", success, total);
+            Debug.LogFormat("Generate {0} Codes Complete: {1} / {2}", worldInfo.worldName, success, total);
         }
 
         public static bool GenerateComponent(System.Type type, string generateRoot)

@@ -36,6 +36,11 @@ namespace ECSlike
             if (m_preferences == null) return;
             EditorGUILayout.BeginHorizontal();
             {
+                if (GUILayout.Button("+", GUI.skin.button, GUILayout.Width(30f)))
+                {
+                    m_preferences.worlds.Add(new ECSlikeWorldInfo());
+                }
+                EditorGUILayout.Space();
                 if (GUILayout.Button("Save", GUI.skin.button, GUILayout.Width(50f)))
                 {
                     if (ECSlikePreferences.Save())
@@ -49,18 +54,53 @@ namespace ECSlike
                 }
             }
             EditorGUILayout.EndHorizontal();
-            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(4f);
+            int count = m_preferences.worlds.Count;
+            for (int i = 0; i < count; i++)
             {
-                EditorGUILayout.LabelField("World Name", GUILayout.Width(EditorGUIUtility.labelWidth));
-                m_preferences.worldName = EditorGUILayout.TextField(m_preferences.worldName);
+                GUILayout.Box("", GUI.skin.textArea, GUILayout.Height(1f), GUILayout.ExpandWidth(true));
+                EditorGUILayout.BeginHorizontal();
+                {
+                    EditorGUILayout.LabelField(i.ToString(), GUILayout.Width(20), GUILayout.Height(40f));
+                    EditorGUILayout.BeginVertical();
+                    {
+                        EditorGUILayout.BeginHorizontal();
+                        {
+                            EditorGUILayout.LabelField("World Name", GUILayout.Width(EditorGUIUtility.labelWidth));
+                            m_preferences.worlds[i].worldName = EditorGUILayout.TextField(m_preferences.worlds[i].worldName);
+                        }
+                        EditorGUILayout.EndHorizontal();
+                        EditorGUILayout.BeginHorizontal();
+                        {
+                            EditorGUILayout.LabelField("Input", GUILayout.Width(EditorGUIUtility.labelWidth));
+                            m_preferences.worlds[i].input = EditorGUILayout.TextField(m_preferences.worlds[i].input);
+                        }
+                        EditorGUILayout.EndHorizontal();
+                        EditorGUILayout.BeginHorizontal();
+                        {
+                            EditorGUILayout.LabelField("Output", GUILayout.Width(EditorGUIUtility.labelWidth));
+                            m_preferences.worlds[i].output = EditorGUILayout.TextField(m_preferences.worlds[i].output);
+                        }
+                        EditorGUILayout.EndHorizontal();
+                    }
+                    EditorGUILayout.EndVertical();
+                    if (i == 0)
+                    {
+                        EditorGUILayout.LabelField("默认", GUILayout.Width(50f), GUILayout.Height(40f));
+                    }
+                    else
+                    {
+                        if (GUILayout.Button("X", GUI.skin.button, GUILayout.Width(50f), GUILayout.Height(40f)))
+                        {
+                            m_preferences.worlds.RemoveAt(i);
+                            EditorGUILayout.EndHorizontal();
+                            break;
+                        }
+                    }
+                }
+                EditorGUILayout.EndHorizontal();
             }
-            EditorGUILayout.EndHorizontal();
-            EditorGUILayout.BeginHorizontal();
-            {
-                EditorGUILayout.LabelField("Generate Output", GUILayout.Width(EditorGUIUtility.labelWidth));
-                m_preferences.generateOutput = EditorGUILayout.TextField(m_preferences.generateOutput);
-            }
-            EditorGUILayout.EndHorizontal();
+            GUILayout.Box("", GUI.skin.textArea, GUILayout.Height(1f), GUILayout.ExpandWidth(true));
         }
     }
 }
