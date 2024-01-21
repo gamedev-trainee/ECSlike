@@ -14,6 +14,11 @@ namespace ECSlike
             m_entityList = entityList;
         }
 
+        public System.Type[] getTypes()
+        {
+            return m_types;
+        }
+
         public bool containsType(System.Type type)
         {
             int count = m_types.Length;
@@ -40,27 +45,16 @@ namespace ECSlike
             return -1;
         }
 
-        public void addEntity(int value, IComponent component)
+        public void addEntity(int value, IComponent[] components)
         {
             m_entityList.addEntity(value);
-            IComponent[] components;
-            if (!m_entityComponents.TryGetValue(value, out components))
-            {
-                components = new IComponent[m_types.Length];
-                m_entityComponents[value] = components;
-            }
-            components[indexOfType(component.GetType())] = component;
+            m_entityComponents.Add(value, components);
         }
 
-        public void removeEntity(int value, IComponent component)
+        public void removeEntity(int value)
         {
             m_entityList.removeEntity(value);
-            IComponent[] components;
-            if (!m_entityComponents.TryGetValue(value, out components))
-            {
-                return;
-            }
-            components[indexOfType(component.GetType())] = null;
+            m_entityComponents.Remove(value);
         }
 
         public IComponent[] getEntityComponents(int value)
@@ -68,10 +62,10 @@ namespace ECSlike
             return m_entityComponents[value];
         }
 
-        public IComponent[] getEntityComponentsAt(int index)
+        public void getEntityAndComponentsAt(int index, out int entity, out IComponent[] components)
         {
-            int entity = m_entityList.getAt(index);
-            return getEntityComponents(entity);
+            entity = m_entityList.getAt(index);
+            components = getEntityComponents(entity);
         }
 
         public void beginLock()

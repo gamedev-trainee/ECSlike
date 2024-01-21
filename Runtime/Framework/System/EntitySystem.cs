@@ -15,10 +15,13 @@
         {
             m_wantedEntities.beginLock();
             {
+                int entity;
+                IComponent[] components;
                 int count = m_wantedEntities.getCount();
                 for (int i = 0; i < count; i++)
                 {
-                    onUpdateEntity(m_wantedEntities.getEntityComponentsAt(i));
+                    m_wantedEntities.getEntityAndComponentsAt(i, out entity, out components);
+                    onUpdateEntity(world, entity, components);
                 }
             }
             m_wantedEntities.endLock();
@@ -26,6 +29,6 @@
 
         protected abstract System.Type[] getWantedTypes();
 
-        protected abstract void onUpdateEntity(IComponent[] components);
+        protected abstract void onUpdateEntity(World world, int entity, IComponent[] components);
     }
 }

@@ -69,6 +69,11 @@ namespace ECSlike
             return m_entityManager.getComponents(entity);
         }
 
+        public void removeComponent<T>(int entity) where T : IComponent
+        {
+            m_entityManager.removeComponent<T>(entity);
+        }
+
         public void addSystem<T>() where T : ISystem, new()
         {
             m_systemManager.addSystem<T>();

@@ -152,8 +152,11 @@ namespace ECSlike
             "\n" +
             "}" +
             "";
-        public static readonly string ComponentRegisterDataTemplate = "" +
+        public static readonly string ComponentWithConfigRegisterDataTemplate = "" +
             "            new ECSlike.ComponentRegisterData(typeof({component}), typeof({config}), {extensions}.Create)," +
+            "";
+        public static readonly string ComponentNoConfigRegisterDataTemplate = "" +
+            "            new ECSlike.ComponentRegisterData(typeof({component}), null, null)," +
             "";
         public static readonly string DefaultWorldName = "ECSWorld";
 
@@ -275,7 +278,8 @@ namespace ECSlike
             if (codeTypes.Count > 0)
             {
                 System.Type componentBaseType = typeof(IComponent);
-                List<System.Type> generatedTypes = new List<System.Type>();
+                List<KeyValuePair<System.Type, bool>> generatedTypes = new List<KeyValuePair<System.Type, bool>>();
+                bool hasConfigScript;
                 int count = codeTypes.Count;
                 for (int i = 0; i < count; i++)
                 {
@@ -284,11 +288,9 @@ namespace ECSlike
                         continue;
                     }
                     total++;
-                    if (GenerateComponent(codeTypes[i], generateRoot))
-                    {
-                        generatedTypes.Add(codeTypes[i]);
-                        success++;
-                    }
+                    hasConfigScript = GenerateComponent(codeTypes[i], generateRoot);
+                    generatedTypes.Add(new KeyValuePair<System.Type, bool>(codeTypes[i], hasConfigScript));
+                    success++;
                 }
                 total++;
                 if (GenerateWorld(generatedTypes, worldName, generateRoot))
@@ -317,27 +319,38 @@ namespace ECSlike
                 System.IO.Directory.CreateDirectory(generatedFolder);
             }
             string generatedFilePath = System.IO.Path.Combine(generatedFolder, string.Format("{0}.cs", componentConfigClassName));
-            List<FieldInfo> configFields = new List<FieldInfo>();
-            int count;
-            FieldInfo[] fieldInfos = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
-            if (fieldInfos != null && fieldInfos.Length > 0)
-            {
-                ConfigFieldAttribute configFieldAttribute;
-                count = fieldInfos.Length;
-                for (int i = 0; i < count; i++)
-                {
-                    configFieldAttribute = fieldInfos[i].GetCustomAttribute<ConfigFieldAttribute>();
-                    if (configFieldAttribute == null) continue;
-                    configFields.Add(fieldInfos[i]);
-                }
-            }
-            if (configFields.Count <= 0)
+            if (type.GetCustomAttribute<NonConfigClassAttribute>() != null)
             {
                 if (System.IO.File.Exists(generatedFilePath))
                 {
                     System.IO.File.Delete(generatedFilePath);
                 }
                 return false;
+            }
+            List<FieldInfo> configFields = new List<FieldInfo>();
+            List<FieldInfo> initFields = new List<FieldInfo>();
+            List<InitFieldAttribute> initFieldAttributes = new List<InitFieldAttribute>();
+            int count;
+            FieldInfo[] fieldInfos = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
+            if (fieldInfos != null && fieldInfos.Length > 0)
+            {
+                ConfigFieldAttribute configFieldAttribute;
+                InitFieldAttribute initFieldAttribute;
+                count = fieldInfos.Length;
+                for (int i = 0; i < count; i++)
+                {
+                    configFieldAttribute = fieldInfos[i].GetCustomAttribute<ConfigFieldAttribute>();
+                    if (configFieldAttribute != null)
+                    {
+                        configFields.Add(fieldInfos[i]);
+                    }
+                    initFieldAttribute = fieldInfos[i].GetCustomAttribute<InitFieldAttribute>();
+                    if (initFieldAttribute != null)
+                    {
+                        initFields.Add(fieldInfos[i]);
+                        initFieldAttributes.Add(initFieldAttribute);
+                    }
+                }
             }
             string fieldsDefineCodes = string.Empty;
             string fieldsAssignCodes = string.Empty;
@@ -357,6 +370,11 @@ namespace ECSlike
                 }
                 fieldsAssignCodes = string.Format("{0}            self.{1} = config.{1};", fieldsAssignCodes, configFields[i].Name);
             }
+            count = initFields.Count;
+            for (int i = 0; i < count; i++)
+            {
+                fieldsAssignCodes = string.Format("{0}            self.{1} = config.{2};", fieldsAssignCodes, initFields[i].Name, initFieldAttributes[i].content);
+            }
             string configCode = ComponentConfigTemplate;
             configCode = configCode.Replace("{namespace}", componentNamespace);
             configCode = configCode.Replace("{classname}", componentConfigClassName);
@@ -375,7 +393,7 @@ namespace ECSlike
             return true;
         }
 
-        protected static bool GenerateWorld(List<System.Type> componentTypes, string worldName, string generateRoot)
+        protected static bool GenerateWorld(List<KeyValuePair<System.Type, bool>> componentTypes, string worldName, string generateRoot)
         {
             string generatedFolder = generateRoot;
             if (!System.IO.Directory.Exists(generatedFolder))
@@ -402,20 +420,27 @@ namespace ECSlike
                 {
                     componentsCode = string.Format("{0}\n", componentsCode);
                 }
-                componentClassName = componentTypes[i].Name;
+                componentClassName = componentTypes[i].Key.Name;
                 componentName = componentClassName;
                 if (componentName.EndsWith(ComponentSuffix))
                 {
                     componentName = componentName.Substring(0, componentName.Length - ComponentSuffix.Length);
                 }
-                componentRegisterCode = ComponentRegisterDataTemplate;
+                if (componentTypes[i].Value)
+                {
+                    componentRegisterCode = ComponentWithConfigRegisterDataTemplate;
+                    componentRegisterCode = componentRegisterCode.Replace("{config}", string.Format("{0}{1}", componentName, ComponentConfigSuffix));
+                    componentRegisterCode = componentRegisterCode.Replace("{extensions}", string.Format("{0}{1}", componentClassName, ComponentExtensionsSuffix));
+                }
+                else
+                {
+                    componentRegisterCode = ComponentNoConfigRegisterDataTemplate;
+                }
                 componentRegisterCode = componentRegisterCode.Replace("{component}", componentClassName);
-                componentRegisterCode = componentRegisterCode.Replace("{config}", string.Format("{0}{1}", componentName, ComponentConfigSuffix));
-                componentRegisterCode = componentRegisterCode.Replace("{extensions}", string.Format("{0}{1}", componentClassName, ComponentExtensionsSuffix));
                 componentsCode = string.Format("{0}{1}", componentsCode, componentRegisterCode);
             }
             string worldCode = WorldTemplate;
-            string worldNamespace = componentTypes[0].Namespace;
+            string worldNamespace = componentTypes[0].Key.Namespace;
             worldCode = worldCode.Replace("{namespace}", worldNamespace);
             worldCode = worldCode.Replace("{classname}", worldName);
             worldCode = worldCode.Replace("{components}", componentsCode);

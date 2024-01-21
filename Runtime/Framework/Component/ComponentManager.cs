@@ -33,7 +33,13 @@ namespace ECSlike
 
         public int getComponentID(System.Type type)
         {
-            return m_components[type];
+            int componentID;
+            if (m_components.TryGetValue(type, out componentID))
+            {
+                return componentID;
+            }
+            UnityEngine.Debug.LogErrorFormat("unregister component type: {0}", type.Name);
+            return 0;
         }
     }
 }

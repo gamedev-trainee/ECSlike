@@ -47,20 +47,20 @@ namespace ECSlike
                 }
             }
             map[type] = component;
-            addTypeEntity(type, entity, component);
+            addTypeEntity(type, entity, map);
             return true;
         }
 
-        public bool removeComponent<T>(int entity, T component) where T : IComponent
+        public bool removeComponent<T>(int entity) where T : IComponent
         {
             Dictionary<System.Type, IComponent> map;
             if (!m_components.TryGetValue(entity, out map))
             {
                 return false;
             }
-            System.Type type = component.GetType();
+            System.Type type = typeof(T);
             map.Remove(type);
-            removeTypeEntity(type, entity, component);
+            removeTypeEntity(type, entity);
             return true;
         }
 
@@ -132,26 +132,42 @@ namespace ECSlike
             return typeEntityList;
         }
 
-        protected void addTypeEntity(System.Type type, int entity, IComponent component)
+        protected void addTypeEntity(System.Type type, int entity, Dictionary<System.Type, IComponent> componentMap)
         {
             foreach (KeyValuePair<string, TypeEntityList> kv in m_typeEntityLists)
             {
                 if (kv.Value.containsType(type))
                 {
-                    kv.Value.addEntity(entity, component);
+                    if (containsAllTypes(componentMap, kv.Value.getTypes()))
+                    {
+                        kv.Value.addEntity(entity, getComponents(entity, kv.Value.getTypes()));
+                    }
                 }
             }
         }
 
-        protected void removeTypeEntity(System.Type type, int entity, IComponent component)
+        protected void removeTypeEntity(System.Type type, int entity)
         {
             foreach (KeyValuePair<string, TypeEntityList> kv in m_typeEntityLists)
             {
                 if (kv.Value.containsType(type))
                 {
-                    kv.Value.removeEntity(entity, component);
+                    kv.Value.removeEntity(entity);
                 }
             }
+        }
+
+        protected bool containsAllTypes(Dictionary<System.Type, IComponent> componentMap, System.Type[] types)
+        {
+            int count = types.Length;
+            for (int i = 0; i < count; i++)
+            {
+                if (!componentMap.ContainsKey(types[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }
