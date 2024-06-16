@@ -1,6 +1,6 @@
 {
     "name": "com.gamedev-trainee.ecslike",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "displayName": "ECSlike",
     "description": "Simple ECS framework",
     "unity": "2020.3",
