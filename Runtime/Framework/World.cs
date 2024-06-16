@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ECSlike
 {
@@ -45,9 +44,9 @@ namespace ECSlike
             m_entityManager.destroyEntity(entity);
         }
 
-        internal TypeEntityList getTypeEntityList(System.Type[] types)
+        internal TypeEntityList getTypeEntityList(System.Type[] wantedTypes, System.Type[] unwantedTypes)
         {
-            return m_entityManager.getTypeEntityList(types);
+            return m_entityManager.getTypeEntityList(wantedTypes, unwantedTypes);
         }
 
         internal int getComponentID(System.Type type)
@@ -64,9 +63,24 @@ namespace ECSlike
             }
         }
 
-        public Dictionary<System.Type, IComponent> getComponents(int entity)
+        public T addComponent<T>(int entity) where T : IComponent, new()
         {
-            return m_entityManager.getComponents(entity);
+            T component = new T();
+            m_entityManager.addComponent(entity, component);
+            return component;
+        }
+
+        public T getComponent<T>(int entity) where T : IComponent
+        {
+            return m_entityManager.getComponent<T>(entity);
+        }
+
+        public T getOrAddComponent<T>(int entity) where T : IComponent, new()
+        {
+            T component = m_entityManager.getComponent<T>(entity);
+            if (component == null) component = new T();
+            m_entityManager.addComponent(entity, component);
+            return component;
         }
 
         public void removeComponent<T>(int entity) where T : IComponent

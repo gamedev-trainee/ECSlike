@@ -1,71 +1,73 @@
-﻿using System.Collections.Generic;
-
-namespace ECSlike
+﻿namespace ECSlike
 {
     public class TypeEntityList
     {
-        private System.Type[] m_types = null;
+        private System.Type[] m_wantedTypes = null;
+        private System.Type[] m_unwantedTypes = null;
         private EntityList m_entityList = null;
-        private Dictionary<int, IComponent[]> m_entityComponents = new Dictionary<int, IComponent[]>();
 
-        public TypeEntityList(System.Type[] types, EntityList entityList)
+        public TypeEntityList(System.Type[] wantedTypes, System.Type[] unwantedTypes, EntityList entityList)
         {
-            m_types = types;
+            m_wantedTypes = wantedTypes;
+            m_unwantedTypes = unwantedTypes;
             m_entityList = entityList;
         }
 
-        public System.Type[] getTypes()
+        public System.Type[] getWantedTypes()
         {
-            return m_types;
+            return m_wantedTypes;
         }
 
-        public bool containsType(System.Type type)
+        public System.Type[] getUnwantedTypes()
         {
-            int count = m_types.Length;
-            for (int i = 0; i < count; i++)
+            return m_unwantedTypes;
+        }
+
+        public bool containsWantedType(System.Type type)
+        {
+            if (m_wantedTypes != null)
             {
-                if (m_types[i] == type)
+                int count = m_wantedTypes.Length;
+                for (int i = 0; i < count; i++)
                 {
-                    return true;
+                    if (m_wantedTypes[i] == type)
+                    {
+                        return true;
+                    }
                 }
             }
             return false;
         }
 
-        protected int indexOfType(System.Type type)
+        public bool containsUnwantedType(System.Type type)
         {
-            int count = m_types.Length;
-            for (int i = 0; i < count; i++)
+            if (m_unwantedTypes != null)
             {
-                if (m_types[i] == type)
+                int count = m_unwantedTypes.Length;
+                for (int i = 0; i < count; i++)
                 {
-                    return i;
+                    if (m_unwantedTypes[i] == type)
+                    {
+                        return true;
+                    }
                 }
             }
-            return -1;
+            return false;
         }
 
-        public void addEntity(int value, IComponent[] components)
+        public void addEntity(int value)
         {
             m_entityList.addEntity(value);
-            m_entityComponents.Add(value, components);
         }
 
         public void removeEntity(int value)
         {
             m_entityList.removeEntity(value);
-            m_entityComponents.Remove(value);
         }
 
-        public IComponent[] getEntityComponents(int value)
+        public int getEntityAt(int index)
         {
-            return m_entityComponents[value];
-        }
-
-        public void getEntityAndComponentsAt(int index, out int entity, out IComponent[] components)
-        {
-            entity = m_entityList.getAt(index);
-            components = getEntityComponents(entity);
+            return m_entityList.getAt(index);
         }
 
         public void beginLock()

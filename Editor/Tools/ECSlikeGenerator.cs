@@ -31,6 +31,8 @@ namespace ECSlike
             "\n" +
             "{" +
             "\n" +
+            "    [DisallowMultipleComponent]" +
+            "\n" +
             "    public class {classname} : MonoBehaviour, ECSlike.IComponentConfig" +
             "\n" +
             "    {" +
@@ -89,7 +91,7 @@ namespace ECSlike
             "\n" +
             "        }" +
             "";
-        public static readonly string WorldTemplate = "" +
+        public static readonly string WorldInitializerTemplate = "" +
             "/////////////////////////////////////////////////" +
             "\n" +
             "//" +
@@ -105,46 +107,23 @@ namespace ECSlike
             "\n" +
             "{" +
             "\n" +
-            "    public class {classname} : ECSlike.World" +
+            "    public class {classname}" +
             "\n" +
             "    {" +
             "\n" +
-            "        public static {classname} ms_instance = null;" +
-            "\n" +
-            "\n" +
-            "        public static {classname} Instance" +
+            "        public ECSlike.ComponentRegisterData[] getRegisterDatas()" +
             "\n" +
             "        {" +
             "\n" +
-            "            get" +
+            "            ECSlike.ComponentRegisterData[] datas = new ECSlike.ComponentRegisterData[]" +
             "\n" +
             "            {" +
             "\n" +
-            "                if (ms_instance == null)" +
-            "\n" +
-            "                {" +
-            "\n" +
-            "                    ms_instance = new {classname}();" +
-            "\n" +
-            "                }" +
-            "\n" +
-            "                return ms_instance;" +
-            "\n" +
-            "            }" +
-            "\n" +
-            "        }" +
-            "\n" +
-            "\n" +
-            "        public {classname}() : base(new ECSlike.ComponentRegisterData[]" +
-            "\n" +
-            "        {" +
-            "\n" +
             "{components}" +
             "\n" +
-            "        })" +
+            "            };" +
             "\n" +
-            "        {" +
-            "\n" +
+            "            return datas;" +
             "\n" +
             "        }" +
             "\n" +
@@ -153,12 +132,20 @@ namespace ECSlike
             "}" +
             "";
         public static readonly string ComponentWithConfigRegisterDataTemplate = "" +
-            "            new ECSlike.ComponentRegisterData(typeof({component}), typeof({config}), {extensions}.Create)," +
+            "                new ECSlike.ComponentRegisterData(typeof({component}), typeof({config}), {extensions}.Create)," +
             "";
         public static readonly string ComponentNoConfigRegisterDataTemplate = "" +
-            "            new ECSlike.ComponentRegisterData(typeof({component}), null, null)," +
+            "                new ECSlike.ComponentRegisterData(typeof({component}), null, null)," +
             "";
-        public static readonly string DefaultWorldName = "ECSWorld";
+        public static readonly string ComponentGizmosDrawerTemplate = "" +
+            "        private void OnDrawGizmos()" +
+            "\n" +
+            "        {" +
+            "\n" +
+            "{gizmos}" +
+            "\n" +
+            "        }" +
+            "";
 
         [MenuItem("ECSlike/Generate Codes", false, 1000)]
         public static void GenerateCodes()
@@ -217,6 +204,7 @@ namespace ECSlike
         protected static bool IsWantedAssembly(string location)
         {
             location = location.Replace("\\", "/");
+            if (location.Contains("Assembly-CSharp")) return false;
             if (location.EndsWith("mscorlib.dll")) return false;
             return true;
         }
@@ -225,8 +213,14 @@ namespace ECSlike
         {
             EditorUtility.DisplayProgressBar("Generate Codes", string.Format("read from {0}", worldInfo.input), 0f);
             if (string.IsNullOrEmpty(worldInfo.input)) return null;
-            string[] files = System.IO.Directory.GetFiles(worldInfo.input, "*.cs", System.IO.SearchOption.AllDirectories);
-            if (files == null || files.Length <= 0) return null;
+            string[] inputFiles = System.IO.Directory.GetFiles(worldInfo.input, "*.cs", System.IO.SearchOption.AllDirectories);
+            if (inputFiles == null || inputFiles.Length <= 0) return null;
+            List<string> files = new List<string>(inputFiles);
+            string[] outputFiles = System.IO.Directory.GetFiles(worldInfo.output, "*.cs", System.IO.SearchOption.AllDirectories);
+            if (outputFiles != null && outputFiles.Length > 0)
+            {
+                files.AddRange(outputFiles);
+            }
             CSharpCodeProvider codeProvider = new CSharpCodeProvider();
             CompilerParameters compilerParameters = new CompilerParameters();
             Assembly[] assemblies = System.AppDomain.CurrentDomain.GetAssemblies();
@@ -247,15 +241,28 @@ namespace ECSlike
             }
             compilerParameters.GenerateExecutable = false;
             compilerParameters.GenerateInMemory = true;
-            CompilerResults results = codeProvider.CompileAssemblyFromFile(compilerParameters, files);
+            compilerParameters.CompilerOptions += "/d:UNITY_EDITOR";
+            CompilerResults results = codeProvider.CompileAssemblyFromFile(compilerParameters, files.ToArray());
             if (results.Errors.HasErrors)
             {
+                int errorCount = 0;
                 count = results.Errors.Count;
                 for (int i = 0; i < count; i++)
                 {
-                    Debug.LogErrorFormat("Compile code error: {0}", results.Errors[i].ErrorText);
+                    if (results.Errors[i].IsWarning)
+                    {
+                        Debug.LogWarningFormat("Compile code warning in [{0}]({1}, {2}): {3}", results.Errors[i].FileName, results.Errors[i].Line, results.Errors[i].Column, results.Errors[i].ErrorText);
+                    }
+                    else
+                    {
+                        errorCount++;
+                        Debug.LogErrorFormat("Compile code error in [{0}]({1}, {2}): {3}", results.Errors[i].FileName, results.Errors[i].Line, results.Errors[i].Column, results.Errors[i].ErrorText);
+                    }
                 }
-                return null;
+                if (errorCount > 0)
+                {
+                    return null;
+                }
             }
             Assembly codeAssembly = results.CompiledAssembly;
             return codeAssembly.GetTypes();
@@ -272,6 +279,23 @@ namespace ECSlike
                 }
             }
             string generateRoot = worldInfo.output;
+            Dictionary<string, string> existFiles = new Dictionary<string, string>();
+            if (!System.IO.Directory.Exists(generateRoot))
+            {
+                System.IO.Directory.CreateDirectory(generateRoot);
+            }
+            else
+            {
+                string[] files = System.IO.Directory.GetFiles(generateRoot, "*.cs", System.IO.SearchOption.AllDirectories);
+                if (files != null && files.Length > 0)
+                {
+                    int fileCount = files.Length;
+                    for (int i = 0; i < fileCount; i++)
+                    {
+                        existFiles.Add(System.IO.Path.GetFileNameWithoutExtension(files[i]), files[i]);
+                    }
+                }
+            }
             string worldName = worldInfo.worldName;
             int success = 0;
             int total = 0;
@@ -288,22 +312,33 @@ namespace ECSlike
                         continue;
                     }
                     total++;
-                    hasConfigScript = GenerateComponent(codeTypes[i], generateRoot);
+                    hasConfigScript = GenerateComponent(codeTypes[i], generateRoot, existFiles);
                     generatedTypes.Add(new KeyValuePair<System.Type, bool>(codeTypes[i], hasConfigScript));
                     success++;
                 }
                 total++;
-                if (GenerateWorld(generatedTypes, worldName, generateRoot))
+                if (GenerateWorld(generatedTypes, worldName, generateRoot, existFiles))
                 {
                     success++;
                 }
+            }
+            if (existFiles.Count > 0)
+            {
+                foreach (KeyValuePair<string, string> kv in existFiles)
+                {
+                    System.IO.File.Delete(kv.Value);
+                    System.IO.File.Delete(string.Format("{0}.meta", kv.Value));
+                }
+                existFiles.Clear();
             }
             AssetDatabase.Refresh();
             Debug.LogFormat("Generate {0} Codes Complete: {1} / {2}", worldInfo.worldName, success, total);
         }
 
-        public static bool GenerateComponent(System.Type type, string generateRoot)
+        public static bool GenerateComponent(System.Type type, string generateRoot, Dictionary<string, string> existFiles)
         {
+            if (type.IsAbstract) return false;
+            object inst = type.Assembly.CreateInstance(type.FullName);
             string componentNamespace = type.Namespace;
             string componentClassName = type.Name;
             string componentName = componentClassName;
@@ -319,23 +354,13 @@ namespace ECSlike
                 System.IO.Directory.CreateDirectory(generatedFolder);
             }
             string generatedFilePath = System.IO.Path.Combine(generatedFolder, string.Format("{0}.cs", componentConfigClassName));
-            if (type.GetCustomAttribute<NonConfigClassAttribute>() != null)
-            {
-                if (System.IO.File.Exists(generatedFilePath))
-                {
-                    System.IO.File.Delete(generatedFilePath);
-                }
-                return false;
-            }
             List<FieldInfo> configFields = new List<FieldInfo>();
-            List<FieldInfo> initFields = new List<FieldInfo>();
-            List<InitFieldAttribute> initFieldAttributes = new List<InitFieldAttribute>();
+            List<ConfigFieldAttribute> configFieldAttributes = new List<ConfigFieldAttribute>();
             int count;
             FieldInfo[] fieldInfos = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
             if (fieldInfos != null && fieldInfos.Length > 0)
             {
                 ConfigFieldAttribute configFieldAttribute;
-                InitFieldAttribute initFieldAttribute;
                 count = fieldInfos.Length;
                 for (int i = 0; i < count; i++)
                 {
@@ -343,43 +368,91 @@ namespace ECSlike
                     if (configFieldAttribute != null)
                     {
                         configFields.Add(fieldInfos[i]);
+                        configFieldAttributes.Add(configFieldAttribute);
                     }
-                    initFieldAttribute = fieldInfos[i].GetCustomAttribute<InitFieldAttribute>();
-                    if (initFieldAttribute != null)
+                }
+            }
+            if (configFields.Count <= 0)
+            {
+                if (type.GetCustomAttribute<ConfigClassAttribute>() == null)
+                {
+                    if (System.IO.File.Exists(generatedFilePath))
                     {
-                        initFields.Add(fieldInfos[i]);
-                        initFieldAttributes.Add(initFieldAttribute);
+                        System.IO.File.Delete(generatedFilePath);
                     }
+                    return false;
                 }
             }
             string fieldsDefineCodes = string.Empty;
             string fieldsAssignCodes = string.Empty;
+            string fieldsGizmosCodes = string.Empty;
             bool isMonoProperty;
             count = configFields.Count;
             for (int i = 0; i < count; i++)
             {
-                if (i > 0)
+                if (!string.IsNullOrEmpty(fieldsDefineCodes))
                 {
                     fieldsDefineCodes = string.Format("{0}\n", fieldsDefineCodes);
+                }
+                if (!string.IsNullOrEmpty(fieldsAssignCodes))
+                {
                     fieldsAssignCodes = string.Format("{0}\n", fieldsAssignCodes);
                 }
-                isMonoProperty = IsMonoProperty(configFields[i]);
-                if (!isMonoProperty)
+                if (!string.IsNullOrEmpty(fieldsGizmosCodes))
                 {
-                    fieldsDefineCodes = string.Format("{0}        public {1} {2} = {3};", fieldsDefineCodes, GetTypeName(configFields[i].FieldType), configFields[i].Name, GetTypeDefaultValue(configFields[i].FieldType));
+                    fieldsGizmosCodes = string.Format("{0}\n", fieldsGizmosCodes);
                 }
-                fieldsAssignCodes = string.Format("{0}            self.{1} = config.{1};", fieldsAssignCodes, configFields[i].Name);
+                isMonoProperty = IsMonoProperty(configFields[i]);
+                if (isMonoProperty)
+                {
+                    fieldsAssignCodes = string.Format("{0}            self.{1} = config.{1};", fieldsAssignCodes, configFields[i].Name);
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(configFieldAttributes[i].init))
+                    {
+                        fieldsDefineCodes = string.Format("{0}        public {1} {2} = {3};", fieldsDefineCodes, GetTypeName(configFields[i].FieldType, componentNamespace), configFields[i].Name, GetFieldDefaultValue(configFields[i], configFields[i].FieldType, componentNamespace, inst));
+                        fieldsAssignCodes = string.Format("{0}            self.{1} = config.{1};", fieldsAssignCodes, configFields[i].Name);
+                    }
+                    else
+                    {
+                        fieldsAssignCodes = string.Format("{0}            self.{1} = config.{2};", fieldsAssignCodes, configFields[i].Name, configFieldAttributes[i].init);
+                    }
+                    if (!string.IsNullOrEmpty(configFieldAttributes[i].gizmosDrawer))
+                    {
+                        if (configFieldAttributes[i].gizmosDrawer.Contains("."))
+                        {
+                            fieldsGizmosCodes = string.Format("{0}            {1}.Invoke(transform, {2});", fieldsGizmosCodes, configFieldAttributes[i].gizmosDrawer, configFields[i].Name);
+                        }
+                        else
+                        {
+                            fieldsGizmosCodes = string.Format("{0}            {1}.{2}(transform, {3});", fieldsGizmosCodes, componentClassName, configFieldAttributes[i].gizmosDrawer, configFields[i].Name);
+                        }
+                    }
+                }
             }
-            count = initFields.Count;
-            for (int i = 0; i < count; i++)
+            if (typeof(IComponentInitializer).IsAssignableFrom(type))
             {
-                fieldsAssignCodes = string.Format("{0}            self.{1} = config.{2};", fieldsAssignCodes, initFields[i].Name, initFieldAttributes[i].content);
+                if (!string.IsNullOrEmpty(fieldsAssignCodes))
+                {
+                    fieldsAssignCodes = string.Format("{0}\n", fieldsAssignCodes);
+                }
+                fieldsAssignCodes = string.Format("{0}            self.initComponent();", fieldsAssignCodes);
+            }
+            if (!string.IsNullOrEmpty(fieldsGizmosCodes))
+            {
+                fieldsDefineCodes = string.Format("{0}\n", fieldsDefineCodes);
+                string gizmosCode = ComponentGizmosDrawerTemplate;
+                gizmosCode = gizmosCode.Replace("{gizmos}", fieldsGizmosCodes);
+                fieldsDefineCodes = string.Format("{0}\n", fieldsDefineCodes);
+                fieldsDefineCodes = string.Format("{0}{1}", fieldsDefineCodes, gizmosCode);
             }
             string configCode = ComponentConfigTemplate;
             configCode = configCode.Replace("{namespace}", componentNamespace);
             configCode = configCode.Replace("{classname}", componentConfigClassName);
             configCode = configCode.Replace("{fields}", fieldsDefineCodes);
             System.IO.File.WriteAllText(generatedFilePath, configCode);
+            existFiles.Remove(componentConfigClassName);
             string setupMethodCode = ComponentSetupMethodTemplate;
             setupMethodCode = setupMethodCode.Replace("{component}", componentClassName);
             setupMethodCode = setupMethodCode.Replace("{config}", componentConfigClassName);
@@ -390,17 +463,15 @@ namespace ECSlike
             extensionCode = extensionCode.Replace("{methods}", setupMethodCode);
             generatedFilePath = System.IO.Path.Combine(generatedFolder, string.Format("{0}.cs", componentExtensionsClassName));
             System.IO.File.WriteAllText(generatedFilePath, extensionCode);
+            existFiles.Remove(componentExtensionsClassName);
             return true;
         }
 
-        protected static bool GenerateWorld(List<KeyValuePair<System.Type, bool>> componentTypes, string worldName, string generateRoot)
+        protected static bool GenerateWorld(List<KeyValuePair<System.Type, bool>> componentTypes, string worldName, string generateRoot, Dictionary<string, string> existFiles)
         {
             string generatedFolder = generateRoot;
-            if (!System.IO.Directory.Exists(generatedFolder))
-            {
-                System.IO.Directory.CreateDirectory(generatedFolder);
-            }
-            string generatedFilePath = System.IO.Path.Combine(generatedFolder, string.Format("{0}.cs", worldName));
+            string worldInitializerClassName = string.Format("{0}Initializer", worldName);
+            string generatedFilePath = System.IO.Path.Combine(generatedFolder, string.Format("{0}.cs", worldInitializerClassName));
             if (componentTypes.Count <= 0)
             {
                 if (System.IO.File.Exists(generatedFilePath))
@@ -439,12 +510,13 @@ namespace ECSlike
                 componentRegisterCode = componentRegisterCode.Replace("{component}", componentClassName);
                 componentsCode = string.Format("{0}{1}", componentsCode, componentRegisterCode);
             }
-            string worldCode = WorldTemplate;
             string worldNamespace = componentTypes[0].Key.Namespace;
-            worldCode = worldCode.Replace("{namespace}", worldNamespace);
-            worldCode = worldCode.Replace("{classname}", worldName);
-            worldCode = worldCode.Replace("{components}", componentsCode);
-            System.IO.File.WriteAllText(generatedFilePath, worldCode);
+            string worldInitializerCode = WorldInitializerTemplate;
+            worldInitializerCode = worldInitializerCode.Replace("{namespace}", worldNamespace);
+            worldInitializerCode = worldInitializerCode.Replace("{classname}", worldInitializerClassName);
+            worldInitializerCode = worldInitializerCode.Replace("{components}", componentsCode);
+            System.IO.File.WriteAllText(generatedFilePath, worldInitializerCode);
+            existFiles.Remove(worldInitializerClassName);
             return true;
         }
 
@@ -479,8 +551,25 @@ namespace ECSlike
             return false;
         }
 
-        protected static string GetTypeName(System.Type type)
+        protected static string GetTypeName(System.Type type, string nameSpace)
         {
+            if (type.IsGenericType)
+            {
+                string typeName = type.GetGenericTypeDefinition().FullName;
+                typeName = typeName.Substring(0, typeName.Length - 2);
+                string paramName = string.Empty;
+                System.Type[] paramTypes = type.GenericTypeArguments;
+                int count = paramTypes.Length;
+                for (int i = 0; i < count; i++)
+                {
+                    if (i > 0)
+                    {
+                        paramName = string.Format("{0}, ", paramName);
+                    }
+                    paramName = string.Format("{0}{1}", paramName, GetTypeName(paramTypes[i], nameSpace));
+                }
+                return string.Format("{0}<{1}>", typeName, paramName);
+            }
             if (type.Equals(typeof(bool))) return "bool";
             if (type.Equals(typeof(short))) return "short";
             if (type.Equals(typeof(int))) return "int";
@@ -491,11 +580,73 @@ namespace ECSlike
             if (type.Equals(typeof(float))) return "float";
             if (type.Equals(typeof(double))) return "double";
             if (type.Equals(typeof(string))) return "string";
-            return type.Name;
+            if (type.Namespace.Equals(nameSpace))
+            {
+                return type.Name;
+            }
+            return type.FullName;
         }
 
-        protected static string GetTypeDefaultValue(System.Type type)
+        protected static string GetFieldDefaultValue(FieldInfo fieldInfo, System.Type fieldType, string nameSpace, object inst)
         {
+            if (fieldType.IsGenericType)
+            {
+                return GetTypeDefaultValue(fieldType, nameSpace);
+            }
+            object value = fieldInfo.GetValue(inst);
+            if (value == null)
+            {
+                return GetTypeDefaultValue(fieldType, nameSpace);
+            }
+            if (value is LayerMask)
+            {
+                return (((LayerMask)value).value).ToString();
+            }
+            if (fieldType.IsEnum)
+            {
+                return string.Format("{0}.{1}", fieldType.Name, value.ToString());
+            }
+            if (typeof(string).IsAssignableFrom(fieldType))
+            {
+                if (string.IsNullOrEmpty((string)value))
+                {
+                    return "string.Empty";
+                }
+                return string.Format("\"{0}\"", (string)value);
+            }
+            if (fieldType.IsSerializable)
+            {
+                if (!fieldType.IsValueType)
+                {
+                    return string.Format("new {0}()", value.ToString());
+                }
+            }
+            if (value is bool)
+            {
+                return value.ToString().ToLower();
+            }
+            return value.ToString();
+        }
+
+        protected static string GetTypeDefaultValue(System.Type type, string nameSpace)
+        {
+            if (type.IsGenericType)
+            {
+                string typeName = type.GetGenericTypeDefinition().FullName;
+                typeName = typeName.Substring(0, typeName.Length - 2);
+                string paramName = string.Empty;
+                System.Type[] paramTypes = type.GenericTypeArguments;
+                int count = paramTypes.Length;
+                for (int i = 0; i < count; i++)
+                {
+                    if (i > 0)
+                    {
+                        paramName = string.Format("{0}, ", paramName);
+                    }
+                    paramName = string.Format("{0}{1}", paramName, GetTypeName(paramTypes[i], nameSpace));
+                }
+                return string.Format("new {0}<{1}>()", typeName, paramName);
+            }
             if (type.Equals(typeof(bool))) return "false";
             if (type.Equals(typeof(short))) return "0";
             if (type.Equals(typeof(int))) return "0";
@@ -506,6 +657,8 @@ namespace ECSlike
             if (type.Equals(typeof(float))) return "0f";
             if (type.Equals(typeof(double))) return "0";
             if (type.Equals(typeof(string))) return "string.Empty";
+            if (type.IsEnum) return string.Format("{0}.{1}", type.Name, type.GetEnumValues().GetValue(0).ToString());
+            if (type.IsValueType) return string.Empty;
             return "null";
         }
     }

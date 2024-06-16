@@ -14,8 +14,14 @@ namespace ECSlike
         {
             if (m_locked)
             {
-                m_adds.Add(value);
-                m_removes.Remove(value);
+                if (!m_list.Contains(value))
+                {
+                    if (!m_adds.Contains(value))
+                    {
+                        m_adds.Add(value);
+                        m_removes.Remove(value);
+                    }
+                }
             }
             else
             {
@@ -27,8 +33,15 @@ namespace ECSlike
         {
             if (m_locked)
             {
-                m_removes.Add(value);
-                m_adds.Remove(value);
+                if (m_list.Contains(value))
+                {
+                    m_removes.Add(value);
+                    m_adds.Remove(value);
+                }
+                else
+                {
+                    m_adds.Remove(value);
+                }
             }
             else
             {
