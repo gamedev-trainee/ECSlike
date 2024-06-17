@@ -8,3 +8,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## [0.0.0] - 2023-10-06
+
+## [0.0.1] - 2024-01-14
+
+## [0.0.2] - 2024-06-17
+
+### Added
+
+ - [Both] Component：增加IComponentInitializer用于组件初始化
+ - [Runtime] System：增加UnwantedType辅助过滤Entity
+ - [Editor] 自动生成代码：增加自定义Gizmos绘制函数支持
+
+### Changed
+
+ - [Editor] 自动生成代码：修改的搜索范围为源目录+生成目录
+ - [Editor] 自动生成代码：排除Assembly-CSharp程序集
+ - [Editor] 自动生成代码：ConfigScript修改为默认不生成，包含ConfigField字段标记或标ConfigClass类标记时生成
+ - [Editor] 自动生成代码：自动生成World类，改为自动生成初始化Initializer类
+ 
+### Removed
+
+ - [Editor] 自动生成代码：删除InitField标记，内容合并到ConfigField标记中
+
+### Fixed
+
+ - [Editor] 自动生成代码：修复Component中默认值无法应用到ConfigScript中的问题
