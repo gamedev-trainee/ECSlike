@@ -15,31 +15,31 @@ namespace ECSlike
             m_systemManager = new SystemManager(this);
         }
 
-        public int createEntity()
+        public Entity createEntity()
         {
             return m_entityManager.createEntity();
         }
 
-        public int createEntityBy(GameObject go)
+        public Entity createEntityBy(GameObject go)
         {
             return createEntityBy(go.GetComponents<IComponentConfig>());
         }
 
-        public int createEntityBy(IComponentConfig[] componentConfigs)
+        public Entity createEntityBy(IComponentConfig[] componentConfigs)
         {
-            int entity = createEntity();
+            Entity entity = createEntity();
             if (componentConfigs != null && componentConfigs.Length > 0)
             {
                 int count = componentConfigs.Length;
                 for (int i = 0; i < count; i++)
                 {
-                    addComponent(entity, componentConfigs[i]);
+                    addComponent(entity.id, componentConfigs[i]);
                 }
             }
             return entity;
         }
 
-        public void destroyEntity(int entity)
+        internal void destroyEntity(int entity)
         {
             m_entityManager.destroyEntity(entity);
         }
@@ -54,7 +54,7 @@ namespace ECSlike
             return m_componentManager.getComponentID(type);
         }
 
-        public void addComponent(int entity, IComponentConfig config)
+        internal void addComponent(int entity, IComponentConfig config)
         {
             IComponent component = m_componentManager.createComponent(config);
             if (component != null)
@@ -63,19 +63,19 @@ namespace ECSlike
             }
         }
 
-        public T addComponent<T>(int entity) where T : IComponent, new()
+        internal T addComponent<T>(int entity) where T : IComponent, new()
         {
             T component = new T();
             m_entityManager.addComponent(entity, component);
             return component;
         }
 
-        public T getComponent<T>(int entity) where T : IComponent
+        internal T getComponent<T>(int entity) where T : IComponent
         {
             return m_entityManager.getComponent<T>(entity);
         }
 
-        public T getOrAddComponent<T>(int entity) where T : IComponent, new()
+        internal T getOrAddComponent<T>(int entity) where T : IComponent, new()
         {
             T component = m_entityManager.getComponent<T>(entity);
             if (component == null) component = new T();
@@ -83,9 +83,9 @@ namespace ECSlike
             return component;
         }
 
-        public void removeComponent<T>(int entity) where T : IComponent
+        internal bool removeComponent<T>(int entity) where T : IComponent
         {
-            m_entityManager.removeComponent<T>(entity);
+            return m_entityManager.removeComponent<T>(entity);
         }
 
         public void addSystem<T>() where T : ISystem, new()

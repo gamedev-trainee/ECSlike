@@ -17,12 +17,16 @@
         {
             m_wantedEntities.beginLock();
             {
-                int entity;
+                int id;
                 int count = m_wantedEntities.getCount();
                 for (int i = 0; i < count; i++)
                 {
-                    entity = m_wantedEntities.getEntityAt(i);
-                    onUpdateEntity(world, entity);
+                    id = m_wantedEntities.getEntityAt(i);
+                    onUpdateEntity(new Entity()
+                    {
+                        id = id,
+                        world = world,
+                    });
                 }
             }
             m_wantedEntities.endLock();
@@ -31,6 +35,6 @@
         protected abstract System.Type[] getWantedTypes();
         protected abstract System.Type[] getUnwantedTypes();
 
-        protected abstract void onUpdateEntity(World world, int entity);
+        protected abstract void onUpdateEntity(Entity entity);
     }
 }

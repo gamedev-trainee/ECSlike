@@ -18,15 +18,19 @@ namespace ECSlike
             m_world = world;
         }
 
-        public int createEntity()
+        internal Entity createEntity()
         {
             m_entityCounter++;
-            int entity = m_entityCounter;
-            m_components.Add(entity, new Dictionary<System.Type, IComponent>());
-            return entity;
+            int id = m_entityCounter;
+            m_components.Add(id, new Dictionary<System.Type, IComponent>());
+            return new Entity()
+            {
+                id = id,
+                world = m_world,
+            };
         }
 
-        public void destroyEntity(int entity)
+        internal void destroyEntity(int entity)
         {
             foreach (KeyValuePair<string, EntityList> kv in m_entityLists)
             {
@@ -39,7 +43,7 @@ namespace ECSlike
             m_components.Remove(entity);
         }
 
-        public bool addComponent<T>(int entity, T component) where T : IComponent
+        internal bool addComponent<T>(int entity, T component) where T : IComponent
         {
             System.Type type = component.GetType();
             Dictionary<System.Type, IComponent> map;
@@ -56,7 +60,7 @@ namespace ECSlike
             return true;
         }
 
-        public bool removeComponent<T>(int entity) where T : IComponent
+        internal bool removeComponent<T>(int entity) where T : IComponent
         {
             Dictionary<System.Type, IComponent> map;
             if (!m_components.TryGetValue(entity, out map))
@@ -69,7 +73,7 @@ namespace ECSlike
             return true;
         }
 
-        public T getComponent<T>(int entity) where T : IComponent
+        internal T getComponent<T>(int entity) where T : IComponent
         {
             Dictionary<System.Type, IComponent> map;
             if (!m_components.TryGetValue(entity, out map))
@@ -85,7 +89,7 @@ namespace ECSlike
             return (T)component;
         }
 
-        public IComponent getComponent(int entity, System.Type type)
+        internal IComponent getComponent(int entity, System.Type type)
         {
             Dictionary<System.Type, IComponent> map;
             if (!m_components.TryGetValue(entity, out map))
@@ -100,7 +104,7 @@ namespace ECSlike
             return component;
         }
 
-        public IComponent[] getComponents(int entity, System.Type[] types)
+        internal IComponent[] getComponents(int entity, System.Type[] types)
         {
             Dictionary<System.Type, IComponent> map;
             if (!m_components.TryGetValue(entity, out map))
@@ -116,12 +120,12 @@ namespace ECSlike
             return components;
         }
 
-        public Dictionary<System.Type, IComponent> getComponents(int entity)
+        internal Dictionary<System.Type, IComponent> getComponents(int entity)
         {
             return m_components[entity];
         }
 
-        public TypeEntityList getTypeEntityList(System.Type[] wantedTypes, System.Type[] unwantedTypes)
+        internal TypeEntityList getTypeEntityList(System.Type[] wantedTypes, System.Type[] unwantedTypes)
         {
             string wantedMaskKey = string.Empty;
             string unwantedMaskKey = string.Empty;

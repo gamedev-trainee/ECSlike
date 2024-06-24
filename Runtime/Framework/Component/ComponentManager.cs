@@ -21,7 +21,7 @@ namespace ECSlike
             }
         }
 
-        public IComponent createComponent(IComponentConfig config)
+        internal IComponent createComponent(IComponentConfig config)
         {
             System.Func<IComponentConfig, IComponent> creator;
             if (m_componentCreators.TryGetValue(config.GetType(), out creator))
@@ -31,7 +31,7 @@ namespace ECSlike
             return null;
         }
 
-        public int getComponentID(System.Type type)
+        internal int getComponentID(System.Type type)
         {
             int componentID;
             if (m_components.TryGetValue(type, out componentID))

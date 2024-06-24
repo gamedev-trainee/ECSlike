@@ -13,14 +13,14 @@ namespace ECSlike
             m_world = world;
         }
 
-        public void addSystem<T>() where T : ISystem, new()
+        internal void addSystem<T>() where T : ISystem, new()
         {
             ISystem system = new T();
             system.init(m_world);
             m_systems.Add(system);
         }
 
-        public void update()
+        internal void update()
         {
             int count = m_systems.Count;
             for (int i = 0; i < count; i++)
