@@ -311,6 +311,10 @@ namespace ECSlike
                     {
                         continue;
                     }
+                    if (codeTypes[i].GetCustomAttribute<System.ObsoleteAttribute>() != null)
+                    {
+                        continue;
+                    }
                     total++;
                     hasConfigScript = GenerateComponent(codeTypes[i], generateRoot, existFiles);
                     generatedTypes.Add(new KeyValuePair<System.Type, bool>(codeTypes[i], hasConfigScript));
