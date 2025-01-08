@@ -629,6 +629,10 @@ namespace ECSlike
             {
                 return value.ToString().ToLower();
             }
+            if (value is float)
+            {
+                return string.Format("{0}f", value);
+            }
             return value.ToString();
         }
 
